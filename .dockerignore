@@ -1,0 +1,4 @@
+node_modules
+yaml
+k8s-1-29-1-do-0-lon1-1713867864557-kubeconfig.yaml
+development.env

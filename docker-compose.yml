@@ -1,0 +1,47 @@
+version: '1'
+
+services:
+  app:
+    build: .
+    container_name: nestjs-app
+    ports:
+      - '5001:5001'
+    environment:
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - DO_SPACES_URL=${DO_SPACES_URL}
+      - DO_ACCESS_KEY_ID=${DO_ACCESS_KEY_ID}
+      - DO_SECRET_ACCESS_KEY=${DO_SECRET_ACCESS_KEY}
+      - TYPEORM_HOST=db
+      - TYPEORM_PORT=5432
+      - TYPEORM_USERNAME=admin
+      - TYPEORM_PASSWORD=password
+      - TYPEORM_DATABASE=file_management
+      - TYPEORM_SYNCHRONIZE=true
+      - TYPEORM_LOGGING=true
+      - TYPEORM_ENTITIES=dist/**/*.entity{.ts,.js}
+      - TYPEORM_MIGRATIONS=dist/migrations/*.js
+      - TYPEORM_MIGRATIONS_RUN=true
+      - TYPEORM_MIGRATIONS_TABLE_NAME=migrations
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+    command: npm run start:dev
+
+  db:
+    image: postgres:13
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: file_management
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+volumes:
+  pgdata:
+    driver: local
