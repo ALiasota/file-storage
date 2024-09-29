@@ -1,5 +1,7 @@
 FROM node:18-alpine
 
+RUN npm install -g @nestjs/cli
+
 WORKDIR /app
 
 COPY package*.json ./
