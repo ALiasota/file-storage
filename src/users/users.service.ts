@@ -22,8 +22,18 @@ export class UsersService {
     });
   }
 
+  async getUserByToken(token: string) {
+    return await this.userRepository.findOne({
+      where: { googleAccessToken: token },
+    });
+  }
+
   async createUser(newUser: Partial<UserEntity>) {
     const user = this.userRepository.create(newUser);
     return await this.userRepository.save(user);
+  }
+
+  async updateUser(id: number, user: Partial<UserEntity>) {
+    return this.userRepository.save({ id, ...user });
   }
 }

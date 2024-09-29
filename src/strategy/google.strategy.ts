@@ -14,6 +14,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       )}api/auth/google-callback`,
       scope: ['email', 'profile'],
       profileFields: ['id', 'displayName', 'email', 'gender', 'name'],
+      accessType: 'offline',
+      prompt: 'consent',
     });
   }
 
@@ -28,6 +30,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       firstName: profile.name?.givenName,
       lastName: profile.name?.familyName,
       accessToken,
+      refreshToken,
     };
     done(null, user);
   }

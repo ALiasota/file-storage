@@ -2,6 +2,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
@@ -22,6 +23,10 @@ export class FoldersService {
   ) {}
 
   async createFolder(createFolderDto: CreateFolderDto, userId: number) {
+    const folderDB = await this.getFolderByName(createFolderDto.name, userId);
+
+    if (folderDB) throw new BadRequestException('Folder already exists');
+
     const newFolder = this.folderRepository.create({
       ...createFolderDto,
       userId,
@@ -29,7 +34,7 @@ export class FoldersService {
     return this.folderRepository.save(newFolder);
   }
 
-  async getFolder(folderId: number, userId: number) {
+  async getFolder(folderId: number, userId?: number) {
     const folder = await this.folderRepository.findOne({
       where: { id: folderId },
       relations: ['children', 'files'],
@@ -40,6 +45,14 @@ export class FoldersService {
     }
 
     await this.checkAccess(folder, userId);
+
+    return folder;
+  }
+
+  async getFolderByName(name: string, userId: number) {
+    const folder = await this.folderRepository.findOne({
+      where: { name, userId },
+    });
 
     return folder;
   }
@@ -72,12 +85,16 @@ export class FoldersService {
   }
 
   private async _deleteRecursive(folder: FolderEntity) {
-    folder.files.forEach(async (file) => {
-      await this.filesService.deleteFile(file.userId, file.id);
-    });
+    if (folder.files?.length) {
+      folder.files.forEach(async (file) => {
+        await this.filesService.deleteFile(file.userId, file.id);
+      });
+    }
 
-    for (const childFolder of folder.children) {
-      await this._deleteRecursive(childFolder);
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this._deleteRecursive(childFolder);
+      }
     }
 
     await this.folderRepository.remove(folder);
@@ -96,6 +113,10 @@ export class FoldersService {
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
+
+    const folderDB = await this.getFolderByName(updateFolderDto.name, userId);
+
+    if (folderDB) throw new BadRequestException('Folder already exists');
 
     await this.checkAccess(folder, userId, true);
 
@@ -169,10 +190,10 @@ export class FoldersService {
   ) {
     const hasAccess =
       folder.userId === userId ||
-      folder.viewUsers.some((user) => user.id === userId);
+      folder.viewUsers?.some((user) => user.id === userId);
     const hasEditAccess =
       folder.userId === userId ||
-      folder.editUsers.some((user) => user.id === userId);
+      folder.editUsers?.some((user) => user.id === userId);
 
     if (!hasAccess) {
       throw new ForbiddenException('You do not have access to this folder');
@@ -198,67 +219,97 @@ export class FoldersService {
   }
 
   async addViewUserRecursive(folder: FolderEntity, targetUser: UserEntity) {
-    folder.viewUsers.push(targetUser);
+    if (folder.viewUsers?.length) folder.viewUsers.push(targetUser);
+    else folder.viewUsers = [targetUser];
 
-    for (const childFolder of folder.children) {
-      await this.addViewUserRecursive(childFolder, targetUser);
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this.addViewUserRecursive(childFolder, targetUser);
+      }
     }
 
-    for (const file of folder.files) {
-      await this.filesService.addViewUser(file.id, file.userId, targetUser.id);
+    if (folder.files?.length) {
+      for (const file of folder.files) {
+        await this.filesService.addViewUser(
+          file.id,
+          file.userId,
+          targetUser.id,
+        );
+      }
     }
     return await this.folderRepository.save(folder);
   }
 
   async addEditUserRecursive(folder: FolderEntity, targetUser: UserEntity) {
-    folder.editUsers.push(targetUser);
+    if (folder.editUsers?.length) folder.editUsers.push(targetUser);
+    else folder.editUsers = [targetUser];
 
-    for (const childFolder of folder.children) {
-      await this.addEditUserRecursive(childFolder, targetUser);
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this.addEditUserRecursive(childFolder, targetUser);
+      }
     }
 
-    for (const file of folder.files) {
-      await this.filesService.addEditUser(file.id, file.userId, targetUser.id);
+    if (folder.files?.length) {
+      for (const file of folder.files) {
+        await this.filesService.addEditUser(
+          file.id,
+          file.userId,
+          targetUser.id,
+        );
+      }
     }
 
     return await this.folderRepository.save(folder);
   }
 
   async removeViewUserRecursive(folder: FolderEntity, targetUserId: number) {
-    folder.viewUsers = folder.viewUsers.filter(
-      (user) => user.id !== targetUserId,
-    );
-
-    for (const childFolder of folder.children) {
-      await this.removeViewUserRecursive(childFolder, targetUserId);
+    if (folder.viewUsers?.length) {
+      folder.viewUsers = folder.viewUsers.filter(
+        (user) => user.id !== targetUserId,
+      );
     }
 
-    for (const file of folder.files) {
-      await this.filesService.removeViewUser(
-        file.id,
-        file.userId,
-        targetUserId,
-      );
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this.removeViewUserRecursive(childFolder, targetUserId);
+      }
+    }
+
+    if (folder.files?.length) {
+      for (const file of folder.files) {
+        await this.filesService.removeViewUser(
+          file.id,
+          file.userId,
+          targetUserId,
+        );
+      }
     }
 
     return await this.folderRepository.save(folder);
   }
 
   async removeEditUserRecursive(folder: FolderEntity, targetUserId: number) {
-    folder.editUsers = folder.editUsers.filter(
-      (user) => user.id !== targetUserId,
-    );
-
-    for (const childFolder of folder.children) {
-      await this.removeEditUserRecursive(childFolder, targetUserId);
+    if (folder.editUsers?.length) {
+      folder.editUsers = folder.editUsers.filter(
+        (user) => user.id !== targetUserId,
+      );
     }
 
-    for (const file of folder.files) {
-      await this.filesService.removeEditUser(
-        file.id,
-        file.userId,
-        targetUserId,
-      );
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this.removeEditUserRecursive(childFolder, targetUserId);
+      }
+    }
+
+    if (folder.files?.length) {
+      for (const file of folder.files) {
+        await this.filesService.removeEditUser(
+          file.id,
+          file.userId,
+          targetUserId,
+        );
+      }
     }
 
     return await this.folderRepository.save(folder);
@@ -266,11 +317,12 @@ export class FoldersService {
 
   async cloneFolder(
     folderId: number,
+    userIdFrom: number,
     userId: number,
     newParentFolderId?: number,
   ) {
     const folder = await this.folderRepository.findOne({
-      where: { id: folderId, userId },
+      where: { id: folderId, userId: userIdFrom },
       relations: ['files', 'children'],
     });
 
@@ -287,12 +339,20 @@ export class FoldersService {
     });
     const savedClonedFolder = await this.folderRepository.save(clonedFolder);
 
-    for (const file of folder.files) {
-      await this.filesService.cloneFile(file, savedClonedFolder.id, userId);
+    if (folder.files?.length) {
+      for (const file of folder.files) {
+        await this.filesService.cloneFile(file, savedClonedFolder.id, userId);
+      }
     }
-
-    for (const childFolder of folder.children) {
-      await this.cloneFolder(childFolder.id, userId, savedClonedFolder.id);
+    if (folder.children?.length) {
+      for (const childFolder of folder.children) {
+        await this.cloneFolder(
+          childFolder.id,
+          userIdFrom,
+          userId,
+          savedClonedFolder.id,
+        );
+      }
     }
 
     return savedClonedFolder;
@@ -307,16 +367,6 @@ export class FoldersService {
       relations: ['files', 'children'],
     });
 
-    const foldersPromise = folders.map(async (folder) => {
-      const filesPromise = folder.files.map(
-        async (file) => await this.filesService.getFileWithMetadata(file),
-      );
-
-      const files = await Promise.all(filesPromise);
-
-      return { ...folder, files };
-    });
-
-    return await Promise.all(foldersPromise);
+    return folders;
   }
 }

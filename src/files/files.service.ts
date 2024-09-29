@@ -78,13 +78,31 @@ export class FilesService {
     if (!file) throw new NotFoundException('File not found');
 
     await this.checkAccess(file, userId);
-
     return await this.getFileWithMetadata(file);
   }
 
+  async getFileDB(userId: number, fileId: number) {
+    const file = await this.fileRepository.findOne({
+      where: { id: fileId },
+      relations: ['folder', 'viewUsers', 'editUsers'],
+    });
+
+    if (!file) throw new NotFoundException('File not found');
+
+    await this.checkAccess(file, userId);
+    return file;
+  }
+
   async getFileWithMetadata(file: FileEntity) {
-    const url = await this.getSignedUrl(file.url);
-    const metadata = await this.getFileMetadata(file.url);
+    const folder = await this.foldersService.getFolder(
+      file.folderId,
+      file.userId,
+    );
+    if (!folder) throw new NotFoundException('Folder not found');
+    const folderPath = await this.foldersService.getFolderPath(folder);
+    const path = `${folderPath}/${file.url}`;
+    const url = await this.getSignedUrl(path);
+    const metadata = await this.getFileMetadata(path);
 
     return { ...file, url, contentType: metadata.ContentType };
   }
@@ -140,7 +158,8 @@ export class FilesService {
     const user = await this.usersService.getUserById(targetUserId);
     if (!user) throw new NotFoundException('User not found');
 
-    file.editUsers.push(user);
+    if (file.editUsers?.length) file.editUsers.push(user);
+    else file.editUsers = [user];
     return this.fileRepository.save(file);
   }
 
@@ -151,7 +170,10 @@ export class FilesService {
     });
     if (!file) throw new NotFoundException('File not found');
 
-    file.editUsers = file.editUsers.filter((user) => user.id !== targetUserId);
+    if (file.editUsers?.length)
+      file.editUsers = file.editUsers.filter(
+        (user) => user.id !== targetUserId,
+      );
     return this.fileRepository.save(file);
   }
 
@@ -165,7 +187,8 @@ export class FilesService {
     const user = await this.usersService.getUserById(targetUserId);
     if (!user) throw new NotFoundException('User not found');
 
-    file.viewUsers.push(user);
+    if (file.viewUsers?.length) file.viewUsers.push(user);
+    else file.viewUsers = [user];
     return this.fileRepository.save(file);
   }
 
@@ -176,7 +199,10 @@ export class FilesService {
     });
     if (!file) throw new NotFoundException('File not found');
 
-    file.viewUsers = file.editUsers.filter((user) => user.id !== targetUserId);
+    if (file.viewUsers?.length)
+      file.viewUsers = file.editUsers.filter(
+        (user) => user.id !== targetUserId,
+      );
     return this.fileRepository.save(file);
   }
 
@@ -231,7 +257,7 @@ export class FilesService {
   }
 
   async cloneFile(file: FileEntity, newFolderId: number, userId: number) {
-    await this.copyFileInStorage(file.url, newFolderId, userId);
+    await this.copyFileInStorage(file, newFolderId, userId);
     const clonedFile = this.fileRepository.create({
       name: `copy_${file.name}`,
       url: `copy_${file.url}`,
@@ -246,21 +272,29 @@ export class FilesService {
   }
 
   private async copyFileInStorage(
-    fileKey: string,
+    file: FileEntity,
     newFolderId: number,
     userId: number,
   ) {
-    const newFileKey = `copy_${fileKey}`;
+    const newFileKey = `copy_${file.url}`;
+    const OldFolder = await this.foldersService.getFolder(
+      file.folderId,
+      file.userId,
+    );
+    const NewFolder = await this.foldersService.getFolder(newFolderId, userId);
+    if (!OldFolder || !NewFolder)
+      throw new NotFoundException('Folder not found');
 
-    const folder = await this.foldersService.getFolder(newFolderId, userId);
-    if (!folder) throw new NotFoundException('Folder not found');
-
-    const folderPath = await this.foldersService.getFolderPath(folder);
-
+    const oldFolderPath = await this.foldersService.getFolderPath(OldFolder);
+    const newFolderPath = await this.foldersService.getFolderPath(NewFolder);
+    console.log(`${newFolderPath}/${newFileKey}`);
     await this.s3.copyObject({
       Bucket: this.configService.get<string>('DO_BUCKET'),
-      CopySource: `${this.configService.get<string>('DO_BUCKET')}/${fileKey}`,
-      Key: `${folderPath}/${newFileKey}`,
+      CopySource: `${this.configService.get<string>(
+        'DO_BUCKET',
+      )}/${oldFolderPath}/${file.url}`,
+
+      Key: `${newFolderPath}/${newFileKey}`,
     });
 
     return `${this.configService.get<string>('DO_SPACES_URL')}/${newFileKey}`;

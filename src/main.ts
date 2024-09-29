@@ -4,6 +4,7 @@ import { ValidationPipe } from './pipes/validation.pipe';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import * as session from 'express-session';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function start() {
   const app = await NestFactory.create(AppModule);
@@ -21,7 +22,20 @@ async function start() {
       },
     }),
   );
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
   app.setGlobalPrefix('api');
+
+  const config = new DocumentBuilder()
+    .setTitle('File-Storage')
+    .setDescription('REST API documentation')
+    .setVersion('1.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('/api/docs', app, document);
 
   app.useGlobalPipes(new ValidationPipe());
   await app.listen(PORT, () => console.log(`Server started on port = ${PORT}`));
