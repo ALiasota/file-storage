@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileEntity } from 'src/entities/file.entity';
 import { FilesService } from './files.service';
@@ -9,7 +9,11 @@ import { UsersModule } from 'src/users/users.module';
 @Module({
   controllers: [FilesController],
   providers: [FilesService],
-  imports: [TypeOrmModule.forFeature([FileEntity]), FoldersModule, UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([FileEntity]),
+    forwardRef(() => FoldersModule),
+    UsersModule,
+  ],
   exports: [FilesService],
 })
 export class FilesModule {}

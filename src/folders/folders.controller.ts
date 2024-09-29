@@ -76,6 +76,7 @@ export class FoldersController {
   }
 
   @Delete(':id/view-user')
+  @UseGuards(GoogleGuard)
   async removeViewUser(
     @Param('id') folderId: number,
     @Query('userId') userId: number,
@@ -85,11 +86,30 @@ export class FoldersController {
   }
 
   @Delete(':id/edit-user')
+  @UseGuards(GoogleGuard)
   async removeEditUser(
     @Param('id') folderId: number,
     @Query('userId') userId: number,
     @Body('targetUserId') targetUserId: number,
   ) {
     return this.foldersService.removeEditUser(folderId, userId, targetUserId);
+  }
+
+  @Post(':folderId/clone')
+  @UseGuards(GoogleGuard)
+  async cloneFolderController(
+    @Param('folderId') folderId: number,
+    @Query('userId') userId: number,
+  ) {
+    return this.foldersService.cloneFolder(folderId, userId);
+  }
+
+  @Get('search')
+  @UseGuards(GoogleGuard)
+  async searchFolders(
+    @Param('userId') userId: number,
+    @Query('name') name: string,
+  ) {
+    return this.foldersService.searchFoldersByName(userId, name);
   }
 }
