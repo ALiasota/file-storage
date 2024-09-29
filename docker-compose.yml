@@ -26,8 +26,6 @@ services:
       - TYPEORM_MIGRATIONS_TABLE_NAME=migrations
     depends_on:
       - db
-    volumes:
-      - .:/app
     command: npm run start
 
   db:
