@@ -28,7 +28,7 @@ services:
       - db
     volumes:
       - .:/app
-    command: npm run start:dev
+    command: npm run start
 
   db:
     image: postgres:13
