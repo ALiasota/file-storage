@@ -1,17 +1,17 @@
 FROM node:18-alpine
 
-RUN npm install -g @nestjs/cli
+RUN yarn global add @nestjs/cli
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json yarn.lock ./
 
-RUN npm install
+RUN yarn install
 
 COPY . .
 
-RUN npm run build
+RUN yarn build
 
 EXPOSE 5001
 
-CMD ["npm", "run", "start"]
+CMD ["yarn", "start"]
