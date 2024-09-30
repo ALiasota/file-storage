@@ -185,12 +185,11 @@ export class FilesService {
   }
 
   async addViewUser(fileId: number, userId: number, targetUserId: number) {
-    console.log({ id: fileId, userId });
     const file = await this.fileRepository.findOne({
       where: { id: fileId, userId },
       relations: ['viewUsers'],
     });
-    console.log('file', file);
+
     if (!file) throw new NotFoundException('File not found');
 
     const user = await this.usersService.getUserById(targetUserId);
