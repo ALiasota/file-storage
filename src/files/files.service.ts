@@ -13,6 +13,7 @@ import { Like, Repository } from 'typeorm';
 import { FileEntity } from 'src/entities/file.entity';
 import { FoldersService } from 'src/folders/folders.service';
 import { UsersService } from 'src/users/users.service';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class FilesService {
@@ -24,6 +25,7 @@ export class FilesService {
     @Inject(forwardRef(() => FoldersService))
     private foldersService: FoldersService,
     private usersService: UsersService,
+    private mailService: MailService,
   ) {
     this.s3 = new S3({
       endpoint: this.configService.get<string>('DO_SPACES_URL'),
@@ -57,7 +59,6 @@ export class FilesService {
       const newFile = this.fileRepository.create({
         name: file.originalname,
         url: file.originalname,
-        mimeType: file.mimetype,
         folder,
         userId,
       });
@@ -160,6 +161,12 @@ export class FilesService {
 
     if (file.editUsers?.length) file.editUsers.push(user);
     else file.editUsers = [user];
+    const fileWithUrl = await this.getFileWithMetadata(file);
+    await this.mailService.sendMail(
+      user.email,
+      fileWithUrl.name,
+      fileWithUrl.url,
+    );
     return this.fileRepository.save(file);
   }
 
@@ -178,10 +185,12 @@ export class FilesService {
   }
 
   async addViewUser(fileId: number, userId: number, targetUserId: number) {
+    console.log({ id: fileId, userId });
     const file = await this.fileRepository.findOne({
       where: { id: fileId, userId },
-      relations: ['editUsers'],
+      relations: ['viewUsers'],
     });
+    console.log('file', file);
     if (!file) throw new NotFoundException('File not found');
 
     const user = await this.usersService.getUserById(targetUserId);
@@ -189,13 +198,19 @@ export class FilesService {
 
     if (file.viewUsers?.length) file.viewUsers.push(user);
     else file.viewUsers = [user];
+    const fileWithUrl = await this.getFileWithMetadata(file);
+    await this.mailService.sendMail(
+      user.email,
+      fileWithUrl.name,
+      fileWithUrl.url,
+    );
     return this.fileRepository.save(file);
   }
 
   async removeViewUser(fileId: number, userId: number, targetUserId: number) {
     const file = await this.fileRepository.findOne({
       where: { id: fileId, userId },
-      relations: ['editUsers'],
+      relations: ['viewUsers'],
     });
     if (!file) throw new NotFoundException('File not found');
 
@@ -261,7 +276,6 @@ export class FilesService {
     const clonedFile = this.fileRepository.create({
       name: `copy_${file.name}`,
       url: `copy_${file.url}`,
-      mimeType: file.mimeType,
       folderId: newFolderId,
       userId,
       viewUsers: file.viewUsers,

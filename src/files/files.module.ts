@@ -5,6 +5,7 @@ import { FilesService } from './files.service';
 import { FilesController } from './files.controller';
 import { FoldersModule } from 'src/folders/folders.module';
 import { UsersModule } from 'src/users/users.module';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
   controllers: [FilesController],
@@ -13,6 +14,7 @@ import { UsersModule } from 'src/users/users.module';
     TypeOrmModule.forFeature([FileEntity]),
     forwardRef(() => FoldersModule),
     UsersModule,
+    MailModule,
   ],
   exports: [FilesService],
 })

@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { FoldersModule } from './folders/folders.module';
 import { FilesModule } from './files/files.module';
+import { MailModule } from './mail/mail.module';
 // import { DocumentsModule } from './documents/documents.module';
 
 @Module({
@@ -52,6 +53,7 @@ import { FilesModule } from './files/files.module';
     AuthModule,
     FoldersModule,
     FilesModule,
+    MailModule,
   ],
 })
 export class AppModule {}

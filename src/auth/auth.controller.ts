@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GoogleGuard } from 'src/guards/google.guard';
 import { AuthService } from './auth.service';
@@ -30,7 +30,6 @@ export class AuthController {
   })
   @Get('google-callback')
   async googleCallback(@Req() req) {
-    console.log(req.user);
     const { email, firstName, lastName, accessToken, refreshToken } = req.user;
     return await this.authService.googleSignIp({
       email,
@@ -52,11 +51,11 @@ export class AuthController {
     console.log(req);
   }
 
-  // @ApiOperation({ summary: 'Health check endpoint' })
-  // @ApiResponse({ status: 200, description: 'The service is healthy' })
-  // @Get('health')
-  // @HttpCode(200)
-  // async health() {
-  //   return 'health';
-  // }
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({ status: 200, description: 'The service is healthy' })
+  @Get('health')
+  @HttpCode(200)
+  async health() {
+    return 'health';
+  }
 }

@@ -29,13 +29,6 @@ export class FileEntity {
   })
   url: string;
 
-  @Column({ type: 'varchar', length: 50 })
-  @ApiProperty({
-    example: 'application/pdf',
-    description: 'MIME type of the file (e.g., image/jpeg, application/pdf)',
-  })
-  mimeType: string;
-
   @ManyToOne(() => FolderEntity, (folder) => folder.files, {
     onDelete: 'CASCADE',
   })
